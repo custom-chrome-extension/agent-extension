@@ -1,19 +1,16 @@
-// sidebar.js
+// Agent to use - defaulted patient summary
+let agentType = "patient-summary";
 
-// ─────────────────────────────────────────────────────────────────────
-// CONFIGURATION — update these two values
-// ─────────────────────────────────────────────────────────────────────
+// GitHub Pages bridge page URL
+const BRIDGE_URL =
+    "https://custom-chrome-extension.github.io/agent-extension/bridge.html";
 
-// Your GitHub Pages bridge page URL
-const BRIDGE_URL = "https://custom-chrome-extension.github.io/patient-summary/bridge.html";
-
-// Your GitHub Pages base origin (used for secure postMessage targeting)
+// GitHub Pages base origin (used for secure postMessage targeting)
 const BRIDGE_ORIGIN = "https://custom-chrome-extension.github.io";
 
 // Max characters to send — prevents truncation in the agent
 // Roughly 15,000 chars ≈ 3,000 words. Adjust up if your agent handles more.
 const MAX_CHARS = 15000;
-
 
 // ─────────────────────────────────────────────────────────────────────
 // PROMPT TEMPLATE
@@ -48,146 +45,172 @@ PAGE: {PAGE_TITLE}
 End of patient record. Please begin your analysis.
 `.trim();
 
+// ── Attach a listener to the select element ───────────────────────────
+const agentSelect = document.getElementById("agent");
+const bridgeFrame = document.getElementById("bridge-frame");
 
-// ─────────────────────────────────────────────────────────────────────
-// Everything below this line you don't need to touch
-// ─────────────────────────────────────────────────────────────────────
+agentSelect.addEventListener("click", (event) => {
+    agentType = event.target.value;
+    if (bridgeFrame) {
+        bridgeFrame.contentWindow.postMessage(
+            { type: "SET_AGENT", agentType: agentType },
+            BRIDGE_ORIGIN,
+        );
+    }
+});
 
 // ── Load bridge page in iframe ────────────────────────────────────────
 if (BRIDGE_URL) {
-  document.getElementById('placeholder').remove();
+    document.getElementById("placeholder").remove();
 
-  const iframe = document.createElement('iframe');
-  iframe.id = 'bridge-frame';
-  iframe.src = BRIDGE_URL;
-  iframe.allow = `clipboard-read ${BRIDGE_ORIGIN}; clipboard-write ${BRIDGE_ORIGIN}`;
+    const iframe = document.createElement("iframe");
+    iframe.id = "bridge-frame";
+    iframe.src = BRIDGE_URL;
+    iframe.allow = `clipboard-read ${BRIDGE_ORIGIN}; clipboard-write ${BRIDGE_ORIGIN}`;
 
-  iframe.addEventListener('load', () => {
-    document.getElementById('dot').classList.add('live');
-  });
+    iframe.addEventListener("load", () => {
+        document.getElementById("dot").classList.add("live");
+    });
 
-  document.body.appendChild(iframe);
+    document.body.appendChild(iframe);
 }
-
 
 // ── Status helpers ────────────────────────────────────────────────────
-function setStatus(msg, type = '') {
-  const el = document.getElementById('status');
-  el.className = 'status' + (type ? ' ' + type : '');
-  if (type === 'loading') {
-    el.innerHTML = `<div class="spinner"></div> ${msg}`;
-  } else {
-    el.textContent = msg;
-  }
+function setStatus(msg, type = "") {
+    const el = document.getElementById("status");
+    el.className = "status" + (type ? " " + type : "");
+    if (type === "loading") {
+        el.innerHTML = `<div class="spinner"></div> ${msg}`;
+    } else {
+        el.textContent = msg;
+    }
 }
-
 
 // ── Clean extracted text ──────────────────────────────────────────────
 function cleanPatientText(rawText) {
-  return rawText
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 2)
-    .filter(line => line.length < 500)
-    .filter(line => !/^(home|menu|close|back|next|previous|loading|search|skip|toggle)$/i.test(line))
-    .join('\n');
+    return rawText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 2)
+        .filter((line) => line.length < 500)
+        .filter(
+            (line) =>
+                !/^(home|menu|close|back|next|previous|loading|search|skip|toggle)$/i.test(
+                    line,
+                ),
+        )
+        .join("\n");
 }
-
 
 // ── Hint banner ───────────────────────────────────────────────────────
 function showHint() {
-  document.getElementById('copy-hint').classList.add('visible');
+    document.getElementById("copy-hint").classList.add("visible");
 }
 
 function dismissHint() {
-  document.getElementById('copy-hint').classList.remove('visible');
-  document.getElementById('trunc-warning').classList.remove('visible');
+    document.getElementById("copy-hint").classList.remove("visible");
+    document.getElementById("trunc-warning").classList.remove("visible");
 }
-
 
 // ── Main scan function ────────────────────────────────────────────────
 async function scanPage() {
-  const btn = document.getElementById('scan-btn');
-  btn.disabled = true;
-  dismissHint();
-  setStatus('Reading page…', 'loading');
+    const btn = document.getElementById("scan-btn");
+    btn.disabled = true;
+    dismissHint();
+    setStatus("Reading page…", "loading");
 
-  try {
-    // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    // Inject content.js in case tab was open before extension loaded
     try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-    } catch (e) {
-      // Already injected — safe to ignore
-    }
+        // Get the active tab
+        const [tab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true,
+        });
 
-    // Extract full page DOM
-    setStatus('Extracting patient data…', 'loading');
-    const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+        // Inject content.js in case tab was open before extension loaded
+        try {
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ["content.js"],
+            });
+        } catch (e) {
+            // Already injected — safe to ignore
+        }
 
-    if (!response?.success) {
-      throw new Error(response?.error || 'Could not read page — try refreshing the tab');
-    }
+        // Extract full page DOM
+        setStatus("Extracting patient data…", "loading");
+        const response = await chrome.tabs.sendMessage(tab.id, {
+            type: "GET_PAGE_CONTENT",
+        });
 
-    // Clean the extracted text
-    setStatus('Building prompt…', 'loading');
-    const cleanedText = cleanPatientText(response.content);
+        if (!response?.success) {
+            throw new Error(
+                response?.error ||
+                    "Could not read page — try refreshing the tab",
+            );
+        }
 
-    // Check for truncation
-    let finalText = cleanedText;
-    let wasTruncated = false;
+        // Clean the extracted text
+        setStatus("Building prompt…", "loading");
+        const cleanedText = cleanPatientText(response.content);
 
-    if (cleanedText.length > MAX_CHARS) {
-      finalText = cleanedText.substring(0, MAX_CHARS);
-      wasTruncated = true;
+        // Check for truncation
+        let finalText = cleanedText;
+        let wasTruncated = false;
 
-      const truncEl = document.getElementById('trunc-warning');
-      truncEl.textContent = `⚠ Record is large (${Math.round(cleanedText.length / 1000)}k chars) — sending first ${Math.round(MAX_CHARS / 1000)}k chars. Ask the agent specifically about any sections not covered.`;
-      truncEl.classList.add('visible');
-    }
+        if (cleanedText.length > MAX_CHARS) {
+            finalText = cleanedText.substring(0, MAX_CHARS);
+            wasTruncated = true;
 
-    // Build the full prompt
-    const prompt = PROMPT_TEMPLATE
-      .replace('{PAGE_TITLE}', response.title || 'Patient Record')
-      .replace('{PATIENT_DATA}', finalText);
+            const truncEl = document.getElementById("trunc-warning");
+            truncEl.textContent = `⚠ Record is large (${Math.round(cleanedText.length / 1000)}k chars) — sending first ${Math.round(MAX_CHARS / 1000)}k chars. Ask the agent specifically about any sections not covered.`;
+            truncEl.classList.add("visible");
+        }
 
-    // ── Try postMessage to bridge page first (SDK path) ───────────────
-    const bridgeFrame = document.getElementById('bridge-frame');
+        // Build the full prompt
+        const prompt = PROMPT_TEMPLATE.replace(
+            "{PAGE_TITLE}",
+            response.title || "Patient Record",
+        ).replace("{PATIENT_DATA}", finalText);
 
-    if (bridgeFrame) {
-      try {
-        bridgeFrame.contentWindow.postMessage(
-          { type: 'SEND_TO_AGENT', prompt: prompt },
-          BRIDGE_ORIGIN
-        );
+        // ── Try postMessage to bridge page first (SDK path) ───────────────
+        const bridgeFrame = document.getElementById("bridge-frame");
+
+        if (bridgeFrame) {
+            try {
+                bridgeFrame.contentWindow.postMessage(
+                    { type: "SEND_TO_AGENT", prompt: prompt },
+                    BRIDGE_ORIGIN,
+                );
+
+                const words = Math.round(finalText.length / 5);
+                setStatus(
+                    `✓ Sent to agent — ${words.toLocaleString()} words${wasTruncated ? " (truncated)" : ""}`,
+                    "success",
+                );
+                return; // postMessage succeeded — skip clipboard fallback
+            } catch (e) {
+                // Bridge not ready yet — fall through to clipboard
+                console.warn(
+                    "[Patient Summary] postMessage failed, falling back to clipboard:",
+                    e,
+                );
+            }
+        }
+
+        // ── Clipboard fallback ────────────────────────────────────────────
+        await navigator.clipboard.writeText(prompt);
+        showHint();
+        document.getElementById("bridge-frame")?.focus();
 
         const words = Math.round(finalText.length / 5);
-        setStatus(`✓ Sent to agent — ${words.toLocaleString()} words${wasTruncated ? ' (truncated)' : ''}`, 'success');
-        return; // postMessage succeeded — skip clipboard fallback
-
-      } catch (e) {
-        // Bridge not ready yet — fall through to clipboard
-        console.warn('[Patient Summary] postMessage failed, falling back to clipboard:', e);
-      }
+        setStatus(
+            `✓ Prompt copied — ${words.toLocaleString()} words${wasTruncated ? " (truncated)" : ""}`,
+            "success",
+        );
+    } catch (err) {
+        setStatus("Error: " + err.message, "error");
+        console.error("[Patient Summary]", err);
+    } finally {
+        btn.disabled = false;
     }
-
-    // ── Clipboard fallback ────────────────────────────────────────────
-    await navigator.clipboard.writeText(prompt);
-    showHint();
-    document.getElementById('bridge-frame')?.focus();
-
-    const words = Math.round(finalText.length / 5);
-    setStatus(`✓ Prompt copied — ${words.toLocaleString()} words${wasTruncated ? ' (truncated)' : ''}`, 'success');
-
-  } catch (err) {
-    setStatus('Error: ' + err.message, 'error');
-    console.error('[Patient Summary]', err);
-  } finally {
-    btn.disabled = false;
-  }
 }

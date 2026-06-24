@@ -25,7 +25,7 @@
       justify-content: space-between;
     }
 
-    .header h1 { font-size: 13px; font-weight: 600; color: #1a1a18; }
+    .header h1 { font-size: 20px; font-weight: 600; color: #1a1a18; }
 
     .status-dot {
       width: 8px; height: 8px; border-radius: 50%;
@@ -125,6 +125,10 @@
   </div>
 
   <div class="scan-bar">
+    <select name="agent" id="agent">
+      <option value="patient-summary" selected>Patient Summary Agent</option>
+      <option value="ccr-claims">CCR Claims Agent</option>
+    </select>
     <button class="scan-btn" id="scan-btn" onclick="scanPage()">
       Scan patient record
     </button>

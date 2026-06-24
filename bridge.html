@@ -56,8 +56,8 @@
     // CONFIGURATION
     // ─────────────────────────────────────────────────────────────────
 
-    // Your Quick Suite agent embed URL
-    const QUICKSUITE_URL = "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337";
+    // Default Quick Suite agent (Patient Summary agent)
+    let quicksuite_agent = "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337";
 
     // Only accept messages from these origins (security — don't change)
     const ALLOWED_ORIGINS = [
@@ -87,7 +87,7 @@
 
         chatAgent = await embeddingContext.embedQuickChat(
           {
-            url: QUICKSUITE_URL,
+            url: quicksuite_agent,
             container: document.getElementById('agent-container'),
             width: '100%',
             height: '100%',
@@ -133,8 +133,17 @@
         console.warn('[Bridge] Blocked message from unknown origin:', event.origin);
         return;
       }
-
-      if (event.data?.type === 'SEND_TO_AGENT') {
+	  if (event.data?.type === 'SET_AGENT'){
+		switch (event.data.agentType){
+			case 'patient-summary':
+				quicksuite_agent = 'https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337';
+				break;
+			case 'ccr-claims':
+				quicksuite_agent = 'https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/cf6e1c37-f890-4195-9301-6d2c1738bb86';
+				break;
+			}
+	  }
+      else if (event.data?.type === 'SEND_TO_AGENT') {
         const prompt = event.data.prompt;
 
         if (!prompt) return;
