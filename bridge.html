@@ -13,6 +13,8 @@
                 height: 100vh;
                 display: flex;
                 flex-direction: column;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             }
 
             iframe {
@@ -22,26 +24,48 @@
                 display: block;
             }
 
-            /* Loading state shown before iframe fires load */
-            #loading {
+            /* ── Overlay — covers the iframe, shown for loading + sign-in ── */
+            #overlay {
                 position: absolute;
                 inset: 0;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 10px;
+                gap: 14px;
                 background: #f8f8f7;
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-size: 13px;
+                color: #6b6b68;
+                text-align: center;
+                padding: 24px;
+            }
+
+            #overlay.hidden {
+                display: none;
+            }
+
+            .overlay-icon {
+                font-size: 32px;
+                opacity: 0.4;
+            }
+
+            .overlay-title {
+                font-size: 14px;
+                font-weight: 600;
+                color: #1a1a18;
+                margin-bottom: 2px;
+            }
+
+            .overlay-sub {
                 font-size: 12px;
                 color: #6b6b68;
-                pointer-events: none;
+                line-height: 1.6;
+                max-width: 220px;
             }
 
             .spinner {
-                width: 18px;
-                height: 18px;
+                width: 20px;
+                height: 20px;
                 border: 2px solid #e0ddd8;
                 border-top-color: #2d5be3;
                 border-radius: 50%;
@@ -52,18 +76,43 @@
                     transform: rotate(360deg);
                 }
             }
+
+            /* ── Sign in button ── */
+            .signin-btn {
+                padding: 9px 20px;
+                background: #2d5be3;
+                color: #fff;
+                border: none;
+                border-radius: 7px;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            .signin-btn:hover {
+                background: #2450cc;
+            }
+
+            /* ── Retry link shown after popup closes ── */
+            .retry-link {
+                font-size: 12px;
+                color: #2d5be3;
+                cursor: pointer;
+                text-decoration: underline;
+                display: none;
+            }
         </style>
     </head>
     <body>
-        <div id="loading">
-            <div class="spinner"></div>
-            <span>Loading agent…</span>
+        <!-- Overlay: loading spinner OR sign-in prompt -->
+        <div id="overlay">
+            <div class="spinner" id="spinner"></div>
+            <span id="overlay-msg">Loading agent…</span>
         </div>
 
         <script>
             // ─────────────────────────────────────────────────────────────────
-            // AGENT URL MAP
-            // Add new agents here as key: url pairs
+            // CONFIGURATION
             // ─────────────────────────────────────────────────────────────────
             const AGENTS = {
                 "patient-summary":
@@ -72,31 +121,140 @@
                     "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/cf6e1c37-f890-4195-9301-6d2c1738bb86",
             };
 
+            // QuickSuite base — used for sign-in popup
+            const QUICKSUITE_BASE =
+                "https://ap-southeast-2.quicksight.aws.amazon.com";
+
             const ALLOWED_ORIGINS = [
                 "https://custom-chrome-extension.github.io",
             ];
 
             let currentAgent = "patient-summary";
-            let iframe = null;
+            let agentIframe = null;
+            let signInPopup = null;
+            let popupTimer = null;
 
-            // ── Create iframe with given URL ──────────────────────────────────
+            // ── Overlay helpers ───────────────────────────────────────────────
+            function showLoading(msg = "Loading agent…") {
+                const overlay = document.getElementById("overlay");
+                overlay.classList.remove("hidden");
+                overlay.innerHTML = `
+        <div class="spinner"></div>
+        <span>${msg}</span>
+      `;
+            }
+
+            function showSignIn() {
+                const overlay = document.getElementById("overlay");
+                overlay.classList.remove("hidden");
+                overlay.innerHTML = `
+        <div class="overlay-icon">🔐</div>
+        <div>
+          <div class="overlay-title">Sign in to QuickSuite</div>
+          <div class="overlay-sub">You need to sign in before the agent can load. Click below — a sign-in window will open briefly.</div>
+        </div>
+        <button class="signin-btn" onclick="openSignIn()">Sign in to QuickSuite</button>
+        <span class="retry-link" id="retry-link" onclick="retryLoad()">Signed in? Click here to load the agent</span>
+      `;
+            }
+
+            function hideOverlay() {
+                document.getElementById("overlay").classList.add("hidden");
+            }
+
+            // ── Detect if QuickSuite is showing a login page ──────────────────
+            // After the iframe loads, try to read its URL.
+            // If it redirected to a login/signin page — show the sign-in prompt.
+            // If cross-origin (normal QuickSuite content) — auth succeeded.
+            function checkAuthState() {
+                if (!agentIframe) return;
+
+                try {
+                    // If we can read the href, the iframe is on our domain — shouldn't happen
+                    const href =
+                        agentIframe.contentWindow?.location?.href || "";
+                    if (
+                        href.includes("signin") ||
+                        href.includes("login") ||
+                        href.includes("auth")
+                    ) {
+                        showSignIn();
+                    } else {
+                        // Readable same-origin page — hide overlay
+                        hideOverlay();
+                    }
+                } catch (e) {
+                    // Cross-origin error = QuickSuite content loaded successfully ✓
+                    // This is the normal success case
+                    hideOverlay();
+                }
+            }
+
+            // ── Load agent iframe ─────────────────────────────────────────────
             function loadAgent(agentType) {
                 const url = AGENTS[agentType];
                 if (!url) return;
 
-                // Remove existing iframe if switching agents
-                if (iframe) iframe.remove();
+                showLoading("Loading agent…");
 
-                iframe = document.createElement("iframe");
-                iframe.src = url;
-                iframe.allow = "clipboard-read; clipboard-write";
+                // Remove existing iframe
+                if (agentIframe) agentIframe.remove();
 
-                iframe.addEventListener("load", () => {
-                    // Hide loading spinner once iframe fires load
-                    document.getElementById("loading").style.display = "none";
+                agentIframe = document.createElement("iframe");
+                agentIframe.src = url;
+                agentIframe.allow = "clipboard-read; clipboard-write";
+                agentIframe.style.cssText =
+                    "flex:1; border:none; width:100%; display:block;";
+
+                agentIframe.addEventListener("load", () => {
+                    // Small delay to let the iframe settle before checking auth
+                    setTimeout(checkAuthState, 500);
                 });
 
-                document.body.appendChild(iframe);
+                document.body.appendChild(agentIframe);
+            }
+
+            // ── Sign-in popup ─────────────────────────────────────────────────
+            function openSignIn() {
+                // Open QuickSuite login in a small popup window
+                const w = 520,
+                    h = 640;
+                const left = Math.round((screen.width - w) / 2);
+                const top = Math.round((screen.height - h) / 2);
+
+                signInPopup = window.open(
+                    QUICKSUITE_BASE,
+                    "quicksuite-signin",
+                    `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`,
+                );
+
+                // Show "Signed in? Click here" link immediately
+                const retryLink = document.getElementById("retry-link");
+                if (retryLink) retryLink.style.display = "block";
+
+                // Poll every second — when popup closes, auto-retry loading
+                if (popupTimer) clearInterval(popupTimer);
+                popupTimer = setInterval(() => {
+                    if (signInPopup && signInPopup.closed) {
+                        clearInterval(popupTimer);
+                        popupTimer = null;
+                        signInPopup = null;
+                        retryLoad();
+                    }
+                }, 1000);
+            }
+
+            // ── Retry loading after sign-in ───────────────────────────────────
+            function retryLoad() {
+                if (popupTimer) {
+                    clearInterval(popupTimer);
+                    popupTimer = null;
+                }
+                if (signInPopup && !signInPopup.closed) {
+                    signInPopup.close();
+                    signInPopup = null;
+                }
+                loadAgent(currentAgent);
             }
 
             // ── Listen for messages from extension sidebar ────────────────────
@@ -113,19 +271,16 @@
                     return;
                 }
 
-                // Switch to a different agent
                 if (event.data?.type === "SET_AGENT") {
                     const newType = event.data.agentType;
                     if (newType !== currentAgent && AGENTS[newType]) {
                         currentAgent = newType;
-                        document.getElementById("loading").style.display =
-                            "flex";
                         loadAgent(currentAgent);
                     }
                 }
             });
 
-            // ── Load default agent on startup ─────────────────────────────────
+            // ── Start ─────────────────────────────────────────────────────────
             loadAgent(currentAgent);
         </script>
     </body>
