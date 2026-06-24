@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { height: 100vh; display: flex; flex-direction: column; background: #f8f8f7; overflow: hidden; }
+
+    /* Agent container — QuickSight SDK mounts here */
+    #agent-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Loading state shown before SDK initialises */
+    #loading {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; color: #6b6b68; font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid #e0ddd8;
+      border-top-color: #2d5be3;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #status-bar {
+      padding: 4px 12px;
+      font-size: 11px; color: #6b6b68;
+      background: #f0ede8;
+      border-top: 1px solid #e8e6e0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      flex-shrink: 0;
+      min-height: 22px;
+    }
+  </style>
+
+  <!-- QuickSight Embedding SDK -->
+  <script src="https://unpkg.com/amazon-quicksight-embedding-sdk@2.11.3/dist/quicksight-embedding-js-sdk.min.js"></script>
+</head>
+<body>
+
+  <div id="agent-container">
+    <div id="loading">
+      <div class="spinner"></div>
+      <span>Loading agent…</span>
+    </div>
+  </div>
+
+  <div id="status-bar"></div>
+
+  <script>
+    // ─────────────────────────────────────────────────────────────────
+    // CONFIGURATION
+    // ─────────────────────────────────────────────────────────────────
+
+    // Your Quick Suite agent embed URL
+    const QUICKSUITE_URL = "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337";
+
+    // Only accept messages from these origins (security — don't change)
+    const ALLOWED_ORIGINS = [
+      "https://custom-chrome-extension.github.io",
+      // Chrome extension origin is added dynamically below
+    ];
+
+
+    // ─────────────────────────────────────────────────────────────────
+    // SDK INITIALISATION
+    // ─────────────────────────────────────────────────────────────────
+    let chatAgent = null;
+    let pendingPrompt = null; // stores prompt if it arrives before SDK is ready
+
+    function setStatus(msg) {
+      document.getElementById('status-bar').textContent = msg;
+    }
+
+    async function initAgent() {
+      try {
+        setStatus('Initialising QuickSight SDK…');
+
+        const embeddingContext = await QuickSightEmbedding.createEmbeddingContext();
+
+        // Remove loading spinner
+        document.getElementById('loading').remove();
+
+        chatAgent = await embeddingContext.embedQuickChat(
+          {
+            url: QUICKSUITE_URL,
+            container: document.getElementById('agent-container'),
+            width: '100%',
+            height: '100%',
+          },
+          {
+            onMessage: async (messageEvent) => {
+              console.log('[Bridge] Agent event:', messageEvent.eventName);
+            }
+          }
+        );
+
+        setStatus('Agent ready');
+
+        // If a prompt arrived before the agent was ready, send it now
+        if (pendingPrompt) {
+          setStatus('Sending patient data…');
+          await chatAgent.send({ text: pendingPrompt });
+          pendingPrompt = null;
+          setStatus('Analysis sent — waiting for response…');
+        }
+
+      } catch (err) {
+        setStatus('Error loading agent: ' + err.message);
+        console.error('[Bridge] SDK init error:', err);
+
+        // Fallback: show the agent as a plain iframe if SDK fails
+        document.getElementById('loading').innerHTML =
+          '<p style="color:#c0392b;font-size:12px;padding:16px;text-align:center">SDK failed to load. Check console for details.</p>';
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────
+    // RECEIVE MESSAGES FROM EXTENSION SIDEBAR
+    // ─────────────────────────────────────────────────────────────────
+    window.addEventListener('message', async (event) => {
+
+      // Security check — only accept from known origins
+      const isAllowed = ALLOWED_ORIGINS.some(origin => event.origin === origin)
+        || event.origin.startsWith('chrome-extension://');
+
+      if (!isAllowed) {
+        console.warn('[Bridge] Blocked message from unknown origin:', event.origin);
+        return;
+      }
+
+      if (event.data?.type === 'SEND_TO_AGENT') {
+        const prompt = event.data.prompt;
+
+        if (!prompt) return;
+
+        if (chatAgent) {
+          // Agent is ready — send immediately
+          setStatus('Sending patient data to agent…');
+          try {
+            await chatAgent.send({ text: prompt });
+            setStatus('Analysis sent — waiting for response…');
+          } catch (err) {
+            setStatus('Error sending to agent: ' + err.message);
+            console.error('[Bridge] sendMessage error:', err);
+          }
+        } else {
+          // Agent not ready yet — queue the prompt
+          pendingPrompt = prompt;
+          setStatus('Queued — waiting for agent to initialise…');
+        }
+      }
+    });
+
+
+    // ─────────────────────────────────────────────────────────────────
+    // START
+    // ─────────────────────────────────────────────────────────────────
+    initAgent();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f8f8f7;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 10px 14px;
+      background: #fff;
+      border-bottom: 1px solid #e8e6e0;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 { font-size: 13px; font-weight: 600; color: #1a1a18; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ccc; transition: background .3s;
+    }
+    .status-dot.live { background: #1D9E75; }
+
+    /* ── Scan bar ── */
+    .scan-bar {
+      padding: 10px 12px;
+      background: #fff;
+      border-bottom: 1px solid #e8e6e0;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .scan-btn {
+      width: 100%; padding: 9px 12px;
+      background: #2d5be3; color: #fff;
+      border: none; border-radius: 7px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: background .15s;
+    }
+    .scan-btn:hover:not(:disabled) { background: #2450cc; }
+    .scan-btn:disabled { background: #a0aecf; cursor: not-allowed; }
+
+    /* ── Status ── */
+    .status {
+      font-size: 11px; color: #6b6b68;
+      min-height: 16px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .status.error   { color: #c0392b; }
+    .status.success { color: #1d6e4e; }
+    .status.loading { color: #2d5be3; }
+    .status.warning { color: #856404; }
+
+    .spinner {
+      width: 9px; height: 9px;
+      border: 1.5px solid #c0cfe8;
+      border-top-color: #2d5be3;
+      border-radius: 50%;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Truncation warning ── */
+    .trunc-warning {
+      display: none;
+      padding: 7px 12px;
+      background: #fff8e6;
+      border-bottom: 1px solid #f5c97a;
+      font-size: 11px; color: #856404; line-height: 1.5;
+      flex-shrink: 0;
+    }
+    .trunc-warning.visible { display: block; }
+
+    /* ── Copy hint banner ── */
+    .copy-hint {
+      display: none;
+      padding: 8px 12px;
+      background: #edf7f2;
+      border-bottom: 1px solid #b8e6d0;
+      font-size: 12px; color: #1d5c3a; line-height: 1.5;
+      flex-shrink: 0;
+      gap: 8px; align-items: flex-start;
+    }
+    .copy-hint.visible { display: flex; }
+    .hint-dismiss {
+      margin-left: auto; background: none; border: none;
+      color: #1d5c3a; cursor: pointer; font-size: 14px;
+      padding: 0 2px; flex-shrink: 0; opacity: 0.6;
+    }
+    .hint-dismiss:hover { opacity: 1; }
+
+    /* ── iframe ── */
+    iframe { flex: 1; border: none; width: 100%; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; padding: 24px; text-align: center;
+      color: #6b6b68; font-size: 12px; line-height: 1.6;
+    }
+    .empty-state .icon { font-size: 28px; opacity: 0.35; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Patient Summary</h1>
+    <div class="status-dot" id="dot"></div>
+  </div>
+
+  <div class="scan-bar">
+    <button class="scan-btn" id="scan-btn" onclick="scanPage()">
+      Scan patient record
+    </button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="trunc-warning" id="trunc-warning"></div>
+
+  <div class="copy-hint" id="copy-hint">
+    <span>✅ <strong>Prompt ready.</strong> Click inside the agent chat below, then press <strong>Ctrl+V</strong> (or ⌘V on Mac) and <strong>Enter</strong> to send.</span>
+    <button class="hint-dismiss" onclick="dismissHint()" title="Dismiss">✕</button>
+  </div>
+
+  <div class="empty-state" id="placeholder">
+    <div class="icon">⬡</div>
+    <p>Agent loads here once configured in sidebar.js</p>
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
