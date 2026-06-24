@@ -1,335 +1,777 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Patient Summary — iframe Test</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Patient Summary — iframe Test</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 13px;
-      background: #f0ede8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
-    }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-size: 13px;
+                background: #f0ede8;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 24px;
+            }
 
-    .workspace {
-      display: flex;
-      gap: 16px;
-      width: 100%;
-      max-width: 1100px;
-      align-items: flex-start;
-    }
+            .workspace {
+                display: flex;
+                gap: 16px;
+                width: 100%;
+                max-width: 1200px;
+                align-items: flex-start;
+            }
 
-    .sidebar {
-      width: 420px;
-      flex-shrink: 0;
-      background: #fff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
-      display: flex;
-      flex-direction: column;
-      height: 700px;
-    }
+            /* ── Sidebar mock ── */
+            .sidebar {
+                width: 420px;
+                flex-shrink: 0;
+                background: #fff;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                height: 760px;
+            }
 
-    .header {
-      padding: 12px 16px;
-      background: #fff;
-      border-bottom: 1px solid #e8e6e0;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+            .header {
+                padding: 12px 16px;
+                background: #fff;
+                border-bottom: 1px solid #e8e6e0;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
 
-    .header h1 { font-size: 13px; font-weight: 600; color: #1a1a18; }
+            .header h1 {
+                font-size: 13px;
+                font-weight: 600;
+                color: #1a1a18;
+            }
 
-    .tag {
-      font-size: 10px; padding: 2px 7px; border-radius: 4px;
-      background: #FFF3CD; color: #856404; font-weight: 500;
-    }
+            .tags {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
 
-    .scan-bar {
-      padding: 10px 12px;
-      background: #f8f8f7;
-      border-bottom: 1px solid #e8e6e0;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+            .tag {
+                font-size: 10px;
+                padding: 2px 7px;
+                border-radius: 4px;
+                background: #fff3cd;
+                color: #856404;
+                font-weight: 500;
+            }
 
-    .scan-btn {
-      width: 100%; padding: 9px 12px;
-      background: #2d5be3; color: #fff;
-      border: none; border-radius: 7px;
-      font-size: 13px; font-weight: 500; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 7px;
-      transition: background .15s;
-    }
-    .scan-btn:hover { background: #2450cc; }
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #ccc;
+                transition: background 0.3s;
+            }
+            .status-dot.live {
+                background: #1d9e75;
+            }
 
-    .status {
-      font-size: 11px; color: #6b6b68;
-      min-height: 16px;
-      display: flex; align-items: center; gap: 5px;
-    }
-    .status.ok    { color: #1d6e4e; }
-    .status.error { color: #c0392b; }
-    .status.loading { color: #2d5be3; }
+            .controls {
+                padding: 10px 12px;
+                background: #f8f8f7;
+                border-bottom: 1px solid #e8e6e0;
+                flex-shrink: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
 
-    .spinner {
-      width: 9px; height: 9px;
-      border: 1.5px solid #c0cfe8;
-      border-top-color: #2d5be3;
-      border-radius: 50%;
-      animation: spin .7s linear infinite; flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+            select {
+                width: 100%;
+                padding: 7px 10px;
+                border: 1px solid #d0cdc8;
+                border-radius: 6px;
+                background: #fff;
+                font-size: 13px;
+                color: #1a1a18;
+                cursor: pointer;
+            }
 
-    .iframe-wrap { flex: 1; position: relative; background: #f8f8f7; }
-    .iframe-wrap iframe { width: 100%; height: 100%; border: none; }
+            .btn-row {
+                display: flex;
+                gap: 6px;
+            }
 
-    .iframe-state {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 10px; padding: 24px; text-align: center;
-      font-size: 12px; line-height: 1.6;
-      background: #f8f8f7;
-    }
-    .iframe-state .icon { font-size: 30px; opacity: 0.35; }
-    .iframe-state p { color: #6b6b68; max-width: 240px; }
-    .iframe-state.hidden { display: none; }
+            .test-btn {
+                flex: 1;
+                padding: 8px 12px;
+                border: none;
+                border-radius: 7px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
 
-    .log-panel {
-      flex: 1;
-      background: #1a1a18;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
-      display: flex;
-      flex-direction: column;
-      height: 700px;
-    }
+            .btn-primary {
+                background: #2d5be3;
+                color: #fff;
+            }
+            .btn-primary:hover {
+                background: #2450cc;
+            }
+            .btn-secondary {
+                background: #f0ede8;
+                color: #1a1a18;
+                border: 1px solid #d0cdc8;
+            }
+            .btn-secondary:hover {
+                background: #e8e4de;
+            }
+            .btn-danger {
+                background: #fff0f0;
+                color: #c0392b;
+                border: 1px solid #f5c0c0;
+            }
+            .btn-danger:hover {
+                background: #ffe4e4;
+            }
 
-    .log-header {
-      padding: 10px 16px;
-      border-bottom: 1px solid #2a2a28;
-      display: flex; align-items: center; justify-content: space-between;
-    }
+            .status {
+                font-size: 11px;
+                color: #6b6b68;
+                min-height: 16px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .status.ok {
+                color: #1d6e4e;
+            }
+            .status.error {
+                color: #c0392b;
+            }
+            .status.loading {
+                color: #2d5be3;
+            }
+            .status.warn {
+                color: #856404;
+            }
 
-    .log-title {
-      font-size: 12px; font-weight: 500; color: #9b9b98;
-      text-transform: uppercase; letter-spacing: 0.06em;
-    }
+            .spinner {
+                width: 9px;
+                height: 9px;
+                border: 1.5px solid #c0cfe8;
+                border-top-color: #2d5be3;
+                border-radius: 50%;
+                animation: spin 0.7s linear infinite;
+                flex-shrink: 0;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
 
-    .clear-btn {
-      font-size: 11px; padding: 2px 8px;
-      border: 1px solid #3a3a38; border-radius: 4px;
-      background: transparent; color: #6b6b68; cursor: pointer;
-    }
-    .clear-btn:hover { color: #9b9b98; }
+            .iframe-wrap {
+                flex: 1;
+                position: relative;
+                background: #f8f8f7;
+            }
+            .iframe-wrap iframe {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
 
-    .log-body {
-      flex: 1; overflow-y: auto;
-      padding: 12px 16px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 12px; line-height: 1.7;
-    }
+            .iframe-state {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 24px;
+                text-align: center;
+                font-size: 12px;
+                line-height: 1.6;
+                background: #f8f8f7;
+            }
+            .iframe-state .icon {
+                font-size: 30px;
+                opacity: 0.35;
+            }
+            .iframe-state p {
+                color: #6b6b68;
+                max-width: 240px;
+            }
+            .iframe-state.hidden {
+                display: none;
+            }
 
-    .log-entry { margin-bottom: 4px; display: flex; gap: 10px; }
-    .log-time { color: #4a4a48; flex-shrink: 0; }
-    .log-msg  { color: #d4d4d0; word-break: break-word; }
-    .log-msg.ok    { color: #5fb88a; }
-    .log-msg.error { color: #e07070; }
-    .log-msg.warn  { color: #e8b84b; }
-    .log-msg.info  { color: #7aaee8; }
-    .log-msg.dim   { color: #5a5a58; }
+            /* ── Log panel ── */
+            .log-panel {
+                flex: 1;
+                background: #1a1a18;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                height: 760px;
+            }
 
-    .instructions {
-      border-top: 1px solid #2a2a28;
-      padding: 12px 16px; flex-shrink: 0;
-    }
+            .log-header {
+                padding: 10px 16px;
+                border-bottom: 1px solid #2a2a28;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
 
-    .inst-title {
-      font-size: 11px; color: #6b6b68;
-      text-transform: uppercase; letter-spacing: 0.05em;
-      margin-bottom: 8px;
-    }
+            .log-title {
+                font-size: 12px;
+                font-weight: 500;
+                color: #9b9b98;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+            }
 
-    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+            .log-actions {
+                display: flex;
+                gap: 6px;
+            }
 
-    .result-card {
-      border-radius: 6px; padding: 7px 10px;
-      font-size: 11px; line-height: 1.5;
-    }
-    .result-card.good { background: rgba(95,184,138,0.12); color: #5fb88a; }
-    .result-card.bad  { background: rgba(224,112,112,0.12); color: #e07070; }
-    .result-card.warn { background: rgba(232,184,75,0.12);  color: #e8b84b; }
-    .result-card strong { display: block; margin-bottom: 2px; font-size: 12px; }
-  </style>
-</head>
-<body>
+            .log-btn {
+                font-size: 11px;
+                padding: 2px 8px;
+                border: 1px solid #3a3a38;
+                border-radius: 4px;
+                background: transparent;
+                color: #6b6b68;
+                cursor: pointer;
+            }
+            .log-btn:hover {
+                color: #9b9b98;
+            }
 
-<div class="workspace">
+            .log-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 12px 16px;
+                font-family: "SF Mono", "Fira Code", monospace;
+                font-size: 12px;
+                line-height: 1.7;
+            }
 
-  <div class="sidebar">
-    <div class="header">
-      <h1>Patient Summary</h1>
-      <span class="tag">TEST MODE</span>
-    </div>
-    <div class="scan-bar">
-      <button class="scan-btn" onclick="runTest()">Run iframe test</button>
-      <div class="status" id="status">Ready — click to test iframe loading</div>
-    </div>
-    <div class="iframe-wrap">
-      <div class="iframe-state" id="state-idle">
-        <div class="icon">⬡</div>
-        <p>Click "Run iframe test" to attempt loading your Quick Suite agent here.</p>
-      </div>
-      <div class="iframe-state hidden" id="state-loading">
-        <div class="icon">⏳</div>
-        <p>Attempting to load iframe…</p>
-      </div>
-      <div class="iframe-state hidden" id="state-error">
-        <div class="icon">🚫</div>
-        <p id="error-msg">The iframe was blocked.</p>
-      </div>
-    </div>
-  </div>
+            .log-entry {
+                margin-bottom: 4px;
+                display: flex;
+                gap: 10px;
+            }
+            .log-time {
+                color: #4a4a48;
+                flex-shrink: 0;
+            }
+            .log-msg {
+                color: #d4d4d0;
+                word-break: break-word;
+            }
+            .log-msg.ok {
+                color: #5fb88a;
+            }
+            .log-msg.error {
+                color: #e07070;
+            }
+            .log-msg.warn {
+                color: #e8b84b;
+            }
+            .log-msg.info {
+                color: #7aaee8;
+            }
+            .log-msg.dim {
+                color: #5a5a58;
+            }
+            .log-msg.agent {
+                color: #c792ea;
+            }
 
-  <div class="log-panel">
-    <div class="log-header">
-      <span class="log-title">Test log</span>
-      <button class="clear-btn" onclick="clearLog()">Clear</button>
-    </div>
-    <div class="log-body" id="log"></div>
-    <div class="instructions">
-      <div class="inst-title">What each result means</div>
-      <div class="result-grid">
-        <div class="result-card good">
-          <strong>✓ iframe loaded</strong>
-          Agent appears in panel. Domain is correctly allow-listed.
+            /* ── Results legend ── */
+            .legend {
+                border-top: 1px solid #2a2a28;
+                padding: 12px 16px;
+                flex-shrink: 0;
+            }
+
+            .legend-title {
+                font-size: 11px;
+                color: #6b6b68;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 8px;
+            }
+
+            .result-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+
+            .result-card {
+                border-radius: 6px;
+                padding: 7px 10px;
+                font-size: 11px;
+                line-height: 1.5;
+            }
+            .result-card.good {
+                background: rgba(95, 184, 138, 0.12);
+                color: #5fb88a;
+            }
+            .result-card.bad {
+                background: rgba(224, 112, 112, 0.12);
+                color: #e07070;
+            }
+            .result-card.warn {
+                background: rgba(232, 184, 75, 0.12);
+                color: #e8b84b;
+            }
+            .result-card strong {
+                display: block;
+                margin-bottom: 2px;
+                font-size: 12px;
+            }
+
+            /* ── postMessage test panel ── */
+            .msg-test {
+                border-top: 1px solid #2a2a28;
+                padding: 10px 16px;
+                flex-shrink: 0;
+            }
+
+            .msg-test-title {
+                font-size: 11px;
+                color: #6b6b68;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 8px;
+            }
+
+            .msg-input {
+                width: 100%;
+                padding: 6px 8px;
+                background: #2a2a28;
+                border: 1px solid #3a3a38;
+                border-radius: 5px;
+                color: #d4d4d0;
+                font-size: 12px;
+                font-family: "SF Mono", "Fira Code", monospace;
+                margin-bottom: 6px;
+                resize: vertical;
+                min-height: 52px;
+            }
+
+            .send-btn {
+                width: 100%;
+                padding: 6px;
+                background: #2d5be3;
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            .send-btn:hover {
+                background: #2450cc;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="workspace">
+            <!-- Left: sidebar mock -->
+            <div class="sidebar">
+                <div class="header">
+                    <h1>Patient Summary</h1>
+                    <div class="tags">
+                        <span class="tag">TEST MODE</span>
+                        <div class="status-dot" id="dot"></div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <!-- Agent selector — mirrors sidebar.html -->
+                    <select
+                        id="agent-select"
+                        onchange="onAgentChange(this.value)"
+                    >
+                        <option value="patient-summary" selected>
+                            Patient Summary Agent
+                        </option>
+                        <option value="ccr-claims">CCR Claims Agent</option>
+                    </select>
+
+                    <div class="btn-row">
+                        <button
+                            class="test-btn btn-primary"
+                            onclick="runTest()"
+                        >
+                            Test iframe load
+                        </button>
+                        <button
+                            class="test-btn btn-secondary"
+                            onclick="switchAgent()"
+                        >
+                            Switch agent
+                        </button>
+                        <button
+                            class="test-btn btn-danger"
+                            onclick="resetTest()"
+                        >
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="status" id="status">
+                        Select an agent and click Test iframe load
+                    </div>
+                </div>
+
+                <div class="iframe-wrap">
+                    <div class="iframe-state" id="state-idle">
+                        <div class="icon">⬡</div>
+                        <p>
+                            Click "Test iframe load" to attempt loading the
+                            selected agent.
+                        </p>
+                    </div>
+                    <div class="iframe-state hidden" id="state-loading">
+                        <div class="icon">⏳</div>
+                        <p>Loading agent…</p>
+                    </div>
+                    <div class="iframe-state hidden" id="state-error">
+                        <div class="icon">🚫</div>
+                        <p id="error-msg">The iframe was blocked.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: log panel -->
+            <div class="log-panel">
+                <div class="log-header">
+                    <span class="log-title">Test log</span>
+                    <div class="log-actions">
+                        <button class="log-btn" onclick="clearLog()">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="log-body" id="log"></div>
+
+                <!-- postMessage test -->
+                <div class="msg-test">
+                    <div class="msg-test-title">Test postMessage → bridge</div>
+                    <textarea
+                        class="msg-input"
+                        id="msg-input"
+                        placeholder="Type a test message to send to the agent via postMessage…"
+                    >
+Hello, can you introduce yourself?</textarea
+                    >
+                    <button class="send-btn" onclick="sendTestMessage()">
+                        Send via postMessage
+                    </button>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <div class="legend-title">What each result means</div>
+                    <div class="result-grid">
+                        <div class="result-card good">
+                            <strong>✓ iframe loaded</strong>
+                            Agent visible. Domain correctly allow-listed.
+                        </div>
+                        <div class="result-card bad">
+                            <strong>✗ Refused to connect</strong>
+                            Add domain to QuickSight allow-list.
+                        </div>
+                        <div class="result-card bad">
+                            <strong>✗ Login redirect</strong>
+                            Sign into QuickSight in another tab first.
+                        </div>
+                        <div class="result-card warn">
+                            <strong>⚠ Loads but blank</strong>
+                            Check Enterprise edition + Reader Pro role.
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="result-card bad">
-          <strong>✗ Refused to connect</strong>
-          Domain not allow-listed in QuickSight embedding settings.
-        </div>
-        <div class="result-card bad">
-          <strong>✗ Login redirect</strong>
-          Sign into QuickSight in another tab first, then re-run.
-        </div>
-        <div class="result-card warn">
-          <strong>⚠ Loads but blank</strong>
-          Wrong subscription tier or Reader Pro role not set.
-        </div>
-      </div>
-    </div>
-  </div>
 
-</div>
+        <script>
+            // ─────────────────────────────────────────────────────────────────
+            // AGENT URL MAP — mirrors bridge.html
+            // ─────────────────────────────────────────────────────────────────
+            const AGENTS = {
+                "patient-summary":
+                    "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337",
+                "ccr-claims":
+                    "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/cf6e1c37-f890-4195-9301-6d2c1738bb86",
+            };
 
-<script>
-  const QUICKSUITE_URL = "https://ap-southeast-2.quicksight.aws.amazon.com/sn/account/Pinnacle/embed/share/accounts/651526146208/chatagents/e630b277-ea3f-4b56-a2fc-c7f338e3b337";
+            const BRIDGE_ORIGIN = "https://custom-chrome-extension.github.io";
 
-  function log(msg, type = '') {
-    const body = document.getElementById('log');
-    const time = new Date().toLocaleTimeString('en-NZ', { hour12: false });
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
-    body.appendChild(entry);
-    body.scrollTop = body.scrollHeight;
-  }
+            let currentAgent = "patient-summary";
+            let timeoutHandle = null;
 
-  function clearLog() { document.getElementById('log').innerHTML = ''; }
+            // ── Logging ───────────────────────────────────────────────────────
+            function log(msg, type = "") {
+                const body = document.getElementById("log");
+                const time = new Date().toLocaleTimeString("en-NZ", {
+                    hour12: false,
+                });
+                const entry = document.createElement("div");
+                entry.className = "log-entry";
+                entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
+                body.appendChild(entry);
+                body.scrollTop = body.scrollHeight;
+            }
 
-  function showState(id) {
-    ['state-idle','state-loading','state-error'].forEach(s => {
-      document.getElementById(s).classList.toggle('hidden', s !== id);
-    });
-  }
+            function clearLog() {
+                document.getElementById("log").innerHTML = "";
+            }
 
-  function setStatus(msg, type = '') {
-    const el = document.getElementById('status');
-    el.className = 'status' + (type ? ' ' + type : '');
-    if (type === 'loading') {
-      el.innerHTML = `<div class="spinner"></div> ${msg}`;
-    } else {
-      el.textContent = msg;
-    }
-  }
+            // ── State helpers ─────────────────────────────────────────────────
+            function showState(id) {
+                ["state-idle", "state-loading", "state-error"].forEach((s) => {
+                    document
+                        .getElementById(s)
+                        .classList.toggle("hidden", s !== id);
+                });
+            }
 
-  function runTest() {
-    const existing = document.getElementById('test-iframe');
-    if (existing) existing.remove();
+            function setStatus(msg, type = "") {
+                const el = document.getElementById("status");
+                el.className = "status" + (type ? " " + type : "");
+                if (type === "loading") {
+                    el.innerHTML = `<div class="spinner"></div> ${msg}`;
+                } else {
+                    el.textContent = msg;
+                }
+            }
 
-    showState('state-loading');
-    setStatus('Attempting to load iframe…', 'loading');
-    log('── New test ──────────────────────', 'dim');
-    log(`Target: ${QUICKSUITE_URL}`, 'info');
-    log('Creating iframe…');
+            // ── Agent selector ────────────────────────────────────────────────
+            function onAgentChange(value) {
+                currentAgent = value;
+                log(`Agent selection changed to: ${value}`, "info");
+                log(
+                    'Click "Test iframe load" to test this agent, or "Switch agent" to hot-swap',
+                    "dim",
+                );
+            }
 
-    const iframe = document.createElement('iframe');
-    iframe.id = 'test-iframe';
-    iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0;';
+            // ── Load iframe test ──────────────────────────────────────────────
+            function runTest() {
+                const existing = document.getElementById("test-iframe");
+                if (existing) existing.remove();
+                if (timeoutHandle) clearTimeout(timeoutHandle);
 
-    iframe.addEventListener('load', () => {
-      log('iframe fired load event ✓', 'ok');
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-        const title = iframeDoc?.title || '';
-        if (title.toLowerCase().includes('sign in') || title.toLowerCase().includes('login')) {
-          log('⚠ Login page detected — sign into QuickSight in another tab first', 'warn');
-          setStatus('⚠ Sign into QuickSight in another tab, then re-run', '');
-        } else {
-          log('Same-origin document accessible', 'ok');
-        }
-      } catch (e) {
-        log('Cross-origin iframe — cannot inspect internals (expected ✓)', 'ok');
-        log('If you can see the agent in the panel on the left → success ✓', 'ok');
-        showState('hidden');
-        setStatus('✓ iframe loaded — check the panel', 'ok');
-      }
-    });
+                const url = AGENTS[currentAgent];
+                if (!url) {
+                    log(
+                        `No URL configured for agent: ${currentAgent}`,
+                        "error",
+                    );
+                    return;
+                }
 
-    iframe.addEventListener('error', () => {
-      log('✗ iframe error — connection refused or network error', 'error');
-      showState('state-error');
-      document.getElementById('error-msg').textContent = 'iframe failed to load. Check domain is allow-listed in QuickSight.';
-      setStatus('✗ Connection refused', 'error');
-    });
+                showState("state-loading");
+                setStatus(`Loading ${currentAgent}…`, "loading");
 
-    iframe.src = QUICKSUITE_URL;
-    document.querySelector('.iframe-wrap').appendChild(iframe);
+                log("── iframe test ───────────────────", "dim");
+                log(`Agent: ${currentAgent}`, "agent");
+                log(`URL: ${url}`, "info");
 
-    setTimeout(() => {
-      if (!document.getElementById('state-loading').classList.contains('hidden')) {
-        log('⚠ 10s timeout — iframe may need active QuickSight session', 'warn');
-        setStatus('⚠ Timeout — try signing into QuickSight first', '');
-        showState('state-error');
-        document.getElementById('error-msg').textContent =
-          'Timed out. Try signing into QuickSight in another tab first.';
-      }
-    }, 10000);
+                const iframe = document.createElement("iframe");
+                iframe.id = "test-iframe";
+                iframe.style.cssText =
+                    "width:100%;height:100%;border:none;position:absolute;inset:0;";
 
-    log('Waiting for iframe response…', 'dim');
-  }
+                iframe.addEventListener("load", () => {
+                    log("iframe fired load event ✓", "ok");
+                    document.getElementById("dot").classList.add("live");
+                    try {
+                        const doc =
+                            iframe.contentDocument ||
+                            iframe.contentWindow?.document;
+                        const title = doc?.title || "";
+                        if (
+                            title.toLowerCase().includes("sign in") ||
+                            title.toLowerCase().includes("login")
+                        ) {
+                            log(
+                                "⚠ Login page detected — sign into QuickSight in another tab first",
+                                "warn",
+                            );
+                            setStatus(
+                                "⚠ Sign in to QuickSight in another tab, then re-run",
+                                "",
+                            );
+                        }
+                    } catch (e) {
+                        log(
+                            "Cross-origin iframe — cannot inspect internals (expected ✓)",
+                            "ok",
+                        );
+                        log(
+                            "If agent is visible in the panel → success ✓",
+                            "ok",
+                        );
+                        showState("hidden");
+                        setStatus(`✓ ${currentAgent} loaded`, "ok");
+                        if (timeoutHandle) clearTimeout(timeoutHandle);
+                    }
+                });
 
-  window.addEventListener('load', () => {
-    log('Test page loaded ✓', 'ok');
-    log(`Serving from: ${window.location.origin}`, 'info');
-    log(`QuickSight URL configured: ${QUICKSUITE_URL ? '✓' : '✗ NOT SET'}`, QUICKSUITE_URL ? 'ok' : 'error');
-    log('Click "Run iframe test" to begin', 'dim');
-  });
-</script>
+                iframe.addEventListener("error", () => {
+                    log("✗ iframe error — connection refused", "error");
+                    showState("state-error");
+                    document.getElementById("error-msg").textContent =
+                        "iframe failed. Check domain is allow-listed in QuickSight.";
+                    setStatus("✗ Connection refused", "error");
+                    if (timeoutHandle) clearTimeout(timeoutHandle);
+                });
 
-</body>
+                iframe.src = url;
+                document.querySelector(".iframe-wrap").appendChild(iframe);
+
+                timeoutHandle = setTimeout(() => {
+                    if (
+                        !document
+                            .getElementById("state-loading")
+                            .classList.contains("hidden")
+                    ) {
+                        log(
+                            "⚠ 10s timeout — try signing into QuickSight first",
+                            "warn",
+                        );
+                        setStatus(
+                            "⚠ Timeout — sign into QuickSight in another tab",
+                            "warn",
+                        );
+                        showState("state-error");
+                        document.getElementById("error-msg").textContent =
+                            "Timed out. Sign into QuickSight in another tab and re-run.";
+                    }
+                }, 10000);
+
+                log("Waiting for iframe response…", "dim");
+            }
+
+            // ── Switch agent (simulates sidebar agent selector) ───────────────
+            // This tests the SET_AGENT postMessage to a bridge page
+            // Only works if the iframe is showing bridge.html, not QuickSight directly
+            function switchAgent() {
+                const frame = document.getElementById("test-iframe");
+                if (!frame) {
+                    log(
+                        "⚠ No iframe loaded — run Test iframe load first",
+                        "warn",
+                    );
+                    return;
+                }
+
+                log("── agent switch test ─────────────", "dim");
+                log(
+                    `Sending SET_AGENT postMessage → agentType: ${currentAgent}`,
+                    "agent",
+                );
+
+                try {
+                    frame.contentWindow.postMessage(
+                        { type: "SET_AGENT", agentType: currentAgent },
+                        BRIDGE_ORIGIN,
+                    );
+                    log("postMessage sent ✓", "ok");
+                    setStatus(`Switched to ${currentAgent}`, "ok");
+                } catch (e) {
+                    log("✗ postMessage failed: " + e.message, "error");
+                    log(
+                        "Note: this only works if the iframe is pointing at bridge.html, not QuickSight directly",
+                        "warn",
+                    );
+                }
+            }
+
+            // ── Send test message via postMessage (tests SEND_TO_AGENT) ──────
+            function sendTestMessage() {
+                const frame = document.getElementById("test-iframe");
+                if (!frame) {
+                    log(
+                        "⚠ No iframe loaded — run Test iframe load first",
+                        "warn",
+                    );
+                    return;
+                }
+
+                const msg = document.getElementById("msg-input").value.trim();
+                if (!msg) return;
+
+                log("── postMessage test ──────────────", "dim");
+                log(
+                    `Sending SEND_TO_AGENT: "${msg.substring(0, 60)}${msg.length > 60 ? "…" : ""}"`,
+                    "agent",
+                );
+
+                try {
+                    frame.contentWindow.postMessage(
+                        { type: "SEND_TO_AGENT", prompt: msg },
+                        BRIDGE_ORIGIN,
+                    );
+                    log(
+                        "postMessage sent ✓ — check agent panel for response",
+                        "ok",
+                    );
+                } catch (e) {
+                    log("✗ postMessage failed: " + e.message, "error");
+                }
+            }
+
+            // ── Reset ─────────────────────────────────────────────────────────
+            function resetTest() {
+                const existing = document.getElementById("test-iframe");
+                if (existing) existing.remove();
+                if (timeoutHandle) clearTimeout(timeoutHandle);
+                showState("state-idle");
+                setStatus("Reset — ready to test again");
+                document.getElementById("dot").classList.remove("live");
+                log("── reset ─────────────────────────", "dim");
+            }
+
+            // ── Init ──────────────────────────────────────────────────────────
+            window.addEventListener("load", () => {
+                log("Test page loaded ✓", "ok");
+                log(`Serving from: ${window.location.origin}`, "info");
+                log(
+                    `Agents configured: ${Object.keys(AGENTS).join(", ")}`,
+                    "info",
+                );
+                log(
+                    'Select an agent and click "Test iframe load" to begin',
+                    "dim",
+                );
+            });
+        </script>
+    </body>
 </html>

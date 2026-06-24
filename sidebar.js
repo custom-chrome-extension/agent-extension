@@ -47,10 +47,12 @@ End of patient record. Please begin your analysis.
 
 // ── Attach a listener to the select element ───────────────────────────
 const agentSelect = document.getElementById("agent");
-const bridgeFrame = document.getElementById("bridge-frame");
 
-agentSelect.addEventListener("click", (event) => {
+agentSelect.addEventListener('change', (event) => {
     agentType = event.target.value;
+
+    const bridgeFrame = document.getElementById("bridge-frame");
+
     if (bridgeFrame) {
         bridgeFrame.contentWindow.postMessage(
             { type: "SET_AGENT", agentType: agentType },
