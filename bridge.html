@@ -197,21 +197,24 @@
 
                 showLoading("Loading agent…");
 
-                // Remove existing iframe
-                if (agentIframe) agentIframe.remove();
+                if (agentIframe) {
+                    // Reuse the same iframe and change where it points towards
+                    agentIframe.src = url;
+                } else {
+                    agentIframe = document.createElement("iframe");
+                    agentIframe.src = url;
+                    agentIframe.allow = "clipboard-read; clipboard-write";
+                    agentIframe.style.cssText =
+                        "flex:1; border:none; width:100%; display:block;";
 
-                agentIframe = document.createElement("iframe");
-                agentIframe.src = url;
-                agentIframe.allow = "clipboard-read; clipboard-write";
-                agentIframe.style.cssText =
-                    "flex:1; border:none; width:100%; display:block;";
+                    agentIframe.addEventListener("load", () => {
+                        // Small delay to let the iframe settle before checking auth
+                        setTimeout(checkAuthState, 500);
+                    });
 
-                agentIframe.addEventListener("load", () => {
-                    // Small delay to let the iframe settle before checking auth
-                    setTimeout(checkAuthState, 500);
-                });
-
-                document.body.appendChild(agentIframe);
+                    document.body.appendChild(agentIframe);
+                    return;
+                }
             }
 
             // ── Sign-in popup ─────────────────────────────────────────────────
